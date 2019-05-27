@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:intl/intl.dart';
 
 void main() => runApp(new TodoApp());
 
@@ -16,30 +17,36 @@ class TodoList extends StatefulWidget {
   createState() => new TodoListState();
 }
 
-class TodoListState extends State<TodoList> {
-  List<String> _todoItems = [];
-  List<bool> checkedItems = [];
+class Task {
+  final String name;
+  final DateTime created;
+  bool checked;
 
-  void _addTodoItem(String task) {
-    if (task.length > 0) {
+  Task(this.name, this.created, this.checked);
+}
+
+class TodoListState extends State<TodoList> {
+  List<Task> _todoItems = [];
+
+  void _addTodoItem(Task task) {
+    if (task.name.length > 0) {
       setState(() => _todoItems.add(task));
-      setState(() => checkedItems.add(false));
     }
   }
 
   void _removeTodoItem(int index) {
     setState(() => _todoItems.removeAt(index));
-    setState(() => checkedItems.removeAt(index));
   }
 
   void _markAsDoneItem(int index) {
-    setState(() => checkedItems[index] = true);
+    setState(() => _todoItems[index].checked = true);
   }
 
   void _removeCheckedItems() {
     var removedItems = 0;
-    checkedItems.toList().asMap().forEach((index, checked) => {
-          if (checked) {_removeTodoItem(index - removedItems), removedItems++}
+    _todoItems.toList().asMap().forEach((index, item) => {
+          if (item.checked)
+            {_removeTodoItem(index - removedItems), removedItems++}
         });
   }
 
@@ -97,20 +104,22 @@ class TodoListState extends State<TodoList> {
     );
   }
 
-  Widget _buildTodoItem(String todoText, int index) {
+  Widget _buildTodoItem(Task todoItem, int index) {
     return new Center(
         child: new Card(
             child: ListTile(
                 leading: new Checkbox(
-                  value: checkedItems[index],
+                  value: _todoItems[index].checked,
                   onChanged: (bool value) {
                     setState(() {
-                      checkedItems[index] = !checkedItems[index];
+                      _todoItems[index].checked = !_todoItems[index].checked;
                     });
                   },
                 ),
-                title: new Text(todoText),
-                subtitle: new Text('Task ${index + 1}'),
+                title: new Text(todoItem.name),
+                subtitle: new Text(new DateFormat('HH:mm yyyy.MM.dd')
+                    .format(todoItem.created)
+                    .toString()),
                 onTap: () => _promptMarkAsDoneItem(index))));
   }
 
@@ -122,7 +131,7 @@ class TodoListState extends State<TodoList> {
             autofocus: true,
             autocorrect: true,
             onSubmitted: (val) {
-              _addTodoItem(val);
+              _addTodoItem(new Task(val, new DateTime.now(), false));
               Navigator.pop(context);
             },
             decoration: new InputDecoration(
