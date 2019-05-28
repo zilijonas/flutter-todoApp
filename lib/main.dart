@@ -1,7 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
 import 'package:intl/intl.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() => runApp(new TodoApp());
 
@@ -19,8 +21,16 @@ class TodoList extends StatefulWidget {
 
 class Task {
   final String name;
-  final DateTime created;
+  final String created;
   bool checked;
+
+  Task.fromJson(Map<String, dynamic> json)
+      : name = json['name'],
+        created = json['created'],
+        checked = json['checked'];
+
+  Map<String, dynamic> toJson() =>
+      {'name': name, 'created': created, 'checked': checked};
 
   Task(this.name, this.created, this.checked);
 }
@@ -28,17 +38,42 @@ class Task {
 class TodoListState extends State<TodoList> {
   List<Task> _todoItems = [];
 
-  void _addTodoItem(Task task) {
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  _loadData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String todoList = prefs.getString('todoList');
+
+    if (todoList != null) {
+      List<dynamic> taskList = jsonDecode(todoList);
+      setState(() => _todoItems =
+          taskList.map((item) => new Task.fromJson(item)).toList());
+    }
+  }
+
+  _setData() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    prefs.setString('todoList',
+        json.encode(_todoItems.map((item) => (item.toJson())).toList()));
+  }
+
+  void _addTodoItem(Task task) async {
     if (task.name.length > 0) {
       setState(() => _todoItems.add(task));
+      _setData();
     }
   }
 
   void _removeTodoItem(int index) {
     setState(() => _todoItems.removeAt(index));
+    _setData();
   }
 
-  void _markAsDoneItem(int index) {
+  void _toggleItemCheckbox(int index) {
     setState(() => _todoItems[index].checked = true);
   }
 
@@ -47,28 +82,6 @@ class TodoListState extends State<TodoList> {
     _todoItems.toList().asMap().forEach((index, item) => {
           if (item.checked)
             {_removeTodoItem(index - removedItems), removedItems++}
-        });
-  }
-
-  void _promptMarkAsDoneItem(int index) {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return new AlertDialog(
-            title: new Text('Mark "${_todoItems[index]}" as done?'),
-            actions: <Widget>[
-              new FlatButton(
-                child: new Text('CANCEL'),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              new FlatButton(
-                  child: new Text('MARK AS DONE'),
-                  onPressed: () {
-                    _markAsDoneItem(index);
-                    Navigator.of(context).pop();
-                  })
-            ],
-          );
         });
   }
 
@@ -117,10 +130,8 @@ class TodoListState extends State<TodoList> {
                   },
                 ),
                 title: new Text(todoItem.name),
-                subtitle: new Text(new DateFormat('HH:mm yyyy.MM.dd')
-                    .format(todoItem.created)
-                    .toString()),
-                onTap: () => _promptMarkAsDoneItem(index))));
+                subtitle: new Text(todoItem.created),
+                onTap: () => _toggleItemCheckbox(index))));
   }
 
   void _pushAddTodoScreen() {
@@ -131,7 +142,12 @@ class TodoListState extends State<TodoList> {
             autofocus: true,
             autocorrect: true,
             onSubmitted: (val) {
-              _addTodoItem(new Task(val, new DateTime.now(), false));
+              _addTodoItem(new Task(
+                  val,
+                  new DateFormat('HH:mm yyyy.MM.dd')
+                      .format(new DateTime.now())
+                      .toString(),
+                  false));
               Navigator.pop(context);
             },
             decoration: new InputDecoration(
