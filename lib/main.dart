@@ -61,9 +61,12 @@ class TodoListState extends State<TodoList> {
         json.encode(_todoItems.map((item) => (item.toJson())).toList()));
   }
 
-  void _addTodoItem(Task task) async {
+  void _addTodoItem(Task task) {
     if (task.name.length > 0) {
-      setState(() => _todoItems.add(task));
+      setState(() {
+        _todoItems.add(task);
+        _todoItems.sort((a, b) => a.created.compareTo(b.created));
+      });
       _setData();
     }
   }
@@ -74,7 +77,8 @@ class TodoListState extends State<TodoList> {
   }
 
   void _toggleItemCheckbox(int index) {
-    setState(() => _todoItems[index].checked = true);
+    setState(() => _todoItems[index].checked = !_todoItems[index].checked);
+    _setData();
   }
 
   void _removeCheckedItems() {
@@ -108,30 +112,57 @@ class TodoListState extends State<TodoList> {
   }
 
   Widget _buildTodoList() {
-    return new ListView.builder(
+    return new ListView.separated(
+      separatorBuilder: (context, index) =>
+          Divider(color: Colors.black, height: 1),
+      itemCount: _todoItems.length,
       itemBuilder: (context, index) {
         if (index < _todoItems.length) {
-          return _buildTodoItem(_todoItems[index], index);
+          return _buildTodoItem(context, _todoItems[index], index);
         }
       },
     );
   }
 
-  Widget _buildTodoItem(Task todoItem, int index) {
-    return new Center(
-        child: new Card(
-            child: ListTile(
-                leading: new Checkbox(
-                  value: _todoItems[index].checked,
-                  onChanged: (bool value) {
-                    setState(() {
-                      _todoItems[index].checked = !_todoItems[index].checked;
-                    });
-                  },
-                ),
-                title: new Text(todoItem.name),
-                subtitle: new Text(todoItem.created),
-                onTap: () => _toggleItemCheckbox(index))));
+  Widget _buildTodoItem(BuildContext context, Task todoItem, int index) {
+    return new Dismissible(
+        key: Key(todoItem.created),
+        onDismissed: (DismissDirection dir) {
+          _removeTodoItem(index);
+
+          Scaffold.of(context).showSnackBar(SnackBar(
+              content: Text(dir == DismissDirection.startToEnd
+                  ? '"${todoItem.name}" deleted.'
+                  : '"${todoItem.name}" marked as done and removed.'),
+              action: SnackBarAction(
+                label: 'UNDO',
+                onPressed: () {
+                  setState(() => _addTodoItem(todoItem));
+                },
+              )));
+        },
+        background: Container(
+          color: Colors.red,
+          child: Icon(Icons.delete),
+          alignment: Alignment.centerLeft,
+        ),
+        secondaryBackground: Container(
+          color: Colors.green,
+          child: Icon(Icons.check_circle),
+          alignment: Alignment.centerRight,
+        ),
+        child: ListTile(
+            leading: new Checkbox(
+              value: todoItem.checked,
+              onChanged: (bool value) {
+                _toggleItemCheckbox(index);
+              },
+            ),
+            title: new Text(todoItem.name),
+            subtitle: new Text(new DateFormat('yyyy.MM.dd HH:mm')
+                .format(DateTime.parse(todoItem.created))
+                .toString()),
+            onTap: () => _toggleItemCheckbox(index)));
   }
 
   void _pushAddTodoScreen() {
@@ -142,12 +173,7 @@ class TodoListState extends State<TodoList> {
             autofocus: true,
             autocorrect: true,
             onSubmitted: (val) {
-              _addTodoItem(new Task(
-                  val,
-                  new DateFormat('HH:mm yyyy.MM.dd')
-                      .format(new DateTime.now())
-                      .toString(),
-                  false));
+              _addTodoItem(new Task(val, new DateTime.now().toString(), false));
               Navigator.pop(context);
             },
             decoration: new InputDecoration(
@@ -172,7 +198,7 @@ class TodoListState extends State<TodoList> {
               child: new Container(
                   width: 150.0,
                   height: 50.0,
-                  margin: const EdgeInsets.only(bottom: 25.0),
+                  margin: const EdgeInsets.only(bottom: 20.0),
                   child: new RaisedButton(
                     shape: new RoundedRectangleBorder(
                         borderRadius: new BorderRadius.circular(10.0)),
