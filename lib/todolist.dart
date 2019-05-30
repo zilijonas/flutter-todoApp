@@ -11,7 +11,8 @@ class TodoList extends StatefulWidget {
 }
 
 class TodoListState extends State<TodoList> {
-  List<Task> _todoList = [];
+  List<Task> todoList = [];
+  List<Task> deleted = [];
 
   @override
   void initState() {
@@ -21,44 +22,47 @@ class TodoListState extends State<TodoList> {
 
   _loadData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
-    String todoList = prefs.getString('todoList');
+    String _todoList = prefs.getString('todoList');
 
     if (todoList != null) {
-      List<dynamic> taskList = jsonDecode(todoList);
+      List<dynamic> taskList = jsonDecode(_todoList);
       setState(() =>
-          _todoList = taskList.map((item) => new Task.fromJson(item)).toList());
+          todoList = taskList.map((item) => new Task.fromJson(item)).toList());
     }
   }
 
   _setData() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('todoList',
-        json.encode(_todoList.map((item) => (item.toJson())).toList()));
+        json.encode(todoList.map((item) => (item.toJson())).toList()));
   }
 
   void _addTodoItem(Task task) {
     if (task.name.length > 0) {
       setState(() {
-        _todoList.add(task);
-        _todoList.sort((a, b) => a.created.compareTo(b.created));
+        todoList.add(task);
+        todoList.sort((a, b) => a.created.compareTo(b.created));
       });
       _setData();
     }
   }
 
   void _removeTodoItem(int index) {
-    setState(() => _todoList.removeAt(index));
+    var task = todoList[index];
+    deleted.add(task);
+    setState(() => todoList.removeAt(index));
     _setData();
   }
 
   void _toggleItemCheckbox(int index) {
-    setState(() => _todoList[index].checked = !_todoList[index].checked);
+    var checked = todoList[index].checked;
+    setState(() => todoList[index].checked = !checked);
     _setData();
   }
 
   void _removeCheckedItems() {
     var removedItems = 0;
-    _todoList.toList().asMap().forEach((index, item) => {
+    todoList.toList().asMap().forEach((index, item) => {
           if (item.checked)
             {_removeTodoItem(index - removedItems), removedItems++}
         });
@@ -86,14 +90,19 @@ class TodoListState extends State<TodoList> {
         });
   }
 
+  void _restoreDeletedTasks() {
+    deleted.forEach((task) => _addTodoItem(task));
+    setState(() => deleted = []);
+  }
+
   Widget _buildTodoList() {
     return new ListView.separated(
       separatorBuilder: (context, index) =>
           Divider(color: Colors.black, height: 1),
-      itemCount: _todoList.length,
+      itemCount: todoList.length,
       itemBuilder: (context, index) {
-        if (index < _todoList.length) {
-          return _buildTodoItem(context, _todoList[index], index);
+        if (index < todoList.length) {
+          return _buildTodoItem(context, todoList[index], index);
         }
       },
     );
@@ -104,17 +113,29 @@ class TodoListState extends State<TodoList> {
         key: Key(todoItem.created),
         onDismissed: (DismissDirection dir) {
           _removeTodoItem(index);
+        },
+        confirmDismiss: (direction) async {
+          if (direction == DismissDirection.startToEnd) {
+            _removeTodoItem(index);
+            // Scaffold.of(context).showSnackBar(SnackBar(
+            //   content: Text(direction == DismissDirection.startToEnd
+            //       ? '"${todoItem.name}" deleted.'
+            //       : '"${todoItem.name}" marked as done and removed.'),
+            //   // action: SnackBarAction(
+            //   //     label: 'UNDO',
+            //   //     // onPressed: () {
+            //   //     //   setState(() => _addTodoItem(todoItem));
+            //   //     // },
+            // ));
 
-          Scaffold.of(context).showSnackBar(SnackBar(
-              content: Text(dir == DismissDirection.startToEnd
-                  ? '"${todoItem.name}" deleted.'
-                  : '"${todoItem.name}" marked as done and removed.'),
-              action: SnackBarAction(
-                label: 'UNDO',
-                onPressed: () {
-                  setState(() => _addTodoItem(todoItem));
-                },
-              )));
+            /// edit item
+            return true;
+          } else if (direction == DismissDirection.endToStart) {
+            setState(() => _toggleItemCheckbox(index));
+
+            /// delete
+            return false;
+          }
         },
         background: Container(
           color: Colors.red,
@@ -127,13 +148,21 @@ class TodoListState extends State<TodoList> {
           alignment: Alignment.center,
         ),
         child: ListTile(
-            leading: new Checkbox(
+            leading: Padding(
+                child: Opacity(
+                  opacity: 0.4,
+                  child: Icon(Icons.assignment_turned_in, size: 32),
+                ),
+                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
+            trailing: new Checkbox(
               value: todoItem.checked,
               onChanged: (bool value) {
                 _toggleItemCheckbox(index);
               },
             ),
-            title: new Text(todoItem.name),
+            title: Padding(
+                child: new Text(todoItem.name),
+                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
             subtitle: new Text(new DateFormat('yyyy.MM.dd HH:mm')
                 .format(DateTime.parse(todoItem.created))
                 .toString()),
@@ -167,14 +196,27 @@ class TodoListState extends State<TodoList> {
           // action button
 
           Padding(
+            child: deleted.length > 0
+                ? IconButton(
+                    alignment: Alignment.centerLeft,
+                    icon: Icon(
+                      Icons.restore,
+                      size: 36,
+                    ),
+                    onPressed: _restoreDeletedTasks,
+                  )
+                : null,
+            padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
+          ),
+          Padding(
             child: IconButton(
-              alignment: Alignment.centerLeft,
+              alignment: Alignment.centerRight,
               icon: Icon(
                 Icons.delete_forever,
                 size: 36,
               ),
               onPressed: () {
-                if (_todoList.toList().where((t) => t.checked).length > 0)
+                if (todoList.toList().where((t) => t.checked).length > 0)
                   _promptClearDoneTasks();
               },
             ),
