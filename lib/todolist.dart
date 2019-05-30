@@ -139,12 +139,18 @@ class TodoListState extends State<TodoList> {
         },
         background: Container(
           color: Colors.red,
-          child: Icon(Icons.delete),
+          child: Icon(
+            Icons.delete,
+            color: Colors.white,
+          ),
           alignment: Alignment.center,
         ),
         secondaryBackground: Container(
           color: Colors.green,
-          child: Icon(Icons.check_circle),
+          child: Icon(
+            Icons.check_circle,
+            color: Colors.white,
+          ),
           alignment: Alignment.center,
         ),
         child: ListTile(
@@ -156,6 +162,7 @@ class TodoListState extends State<TodoList> {
                 padding: EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
             trailing: new Checkbox(
               value: todoItem.checked,
+              activeColor: Colors.green,
               onChanged: (bool value) {
                 _toggleItemCheckbox(index);
               },
@@ -191,7 +198,18 @@ class TodoListState extends State<TodoList> {
   Widget build(BuildContext context) {
     return new Scaffold(
       appBar: AppBar(
-        title: const Text('what to do'),
+        title: Padding(
+          child: const Text(
+            'what to do',
+            style: TextStyle(
+                fontSize: 24,
+                fontWeight: FontWeight.w200,
+                wordSpacing: 2,
+                letterSpacing: 4),
+          ),
+          padding: EdgeInsets.symmetric(horizontal: 5),
+        ),
+        backgroundColor: Colors.indigo,
         actions: <Widget>[
           // action button
 
@@ -206,7 +224,7 @@ class TodoListState extends State<TodoList> {
                     onPressed: _restoreDeletedTasks,
                   )
                 : null,
-            padding: const EdgeInsets.fromLTRB(0, 0, 10, 0),
+            padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
           ),
           Padding(
             child: IconButton(
@@ -220,12 +238,10 @@ class TodoListState extends State<TodoList> {
                   _promptClearDoneTasks();
               },
             ),
-            padding: const EdgeInsets.fromLTRB(0, 0, 30, 0),
+            padding: const EdgeInsets.fromLTRB(0, 0, 18, 0),
           )
         ],
       ),
-
-      //new AppBar(title: new Text('Todo List')),
       body: Container(
           child: new Stack(children: <Widget>[
         new Positioned(
