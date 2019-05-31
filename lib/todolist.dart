@@ -4,10 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'task.dart';
+import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 
 class TodoList extends StatefulWidget {
   @override
-  createState() => new TodoListState();
+  createState() => TodoListState();
 }
 
 class TodoListState extends State<TodoList> {
@@ -27,7 +28,7 @@ class TodoListState extends State<TodoList> {
     if (todoList != null) {
       List<dynamic> taskList = jsonDecode(_todoList);
       setState(() =>
-          todoList = taskList.map((item) => new Task.fromJson(item)).toList());
+          todoList = taskList.map((item) => Task.fromJson(item)).toList());
     }
   }
 
@@ -41,7 +42,7 @@ class TodoListState extends State<TodoList> {
     if (task.name.length > 0) {
       setState(() {
         todoList.add(task);
-        todoList.sort((a, b) => a.created.compareTo(b.created));
+        todoList.sort((a, b) => a.id.compareTo(b.id));
       });
       _setData();
     }
@@ -68,19 +69,40 @@ class TodoListState extends State<TodoList> {
         });
   }
 
+  void _restoreDeletedTasks() {
+    deleted.forEach((task) => _addTodoItem(task));
+    setState(() => deleted = []);
+  }
+
+  // *********************
+  //    *** DIALOGS ***
+  // *********************
   void _promptClearDoneTasks() {
+    var checkedTasks = todoList.where((t) => t.checked).length;
     showDialog(
         context: context,
         builder: (BuildContext context) {
-          return new AlertDialog(
-            title: new Text('Clear all checked tasks?'),
+          return AlertDialog(
+            title: Text('Clear all checked tasks?'),
+            content: Text(
+                'You have selected $checkedTasks ${checkedTasks > 1 ? 'tasks' : 'task'} to clear.'),
             actions: <Widget>[
-              new FlatButton(
-                child: new Text('CANCEL'),
+              FlatButton(
+                child: Text(
+                  'CANCEL',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
                 onPressed: () => Navigator.of(context).pop(),
               ),
-              new FlatButton(
-                  child: new Text('CLEAR'),
+              FlatButton(
+                  child: Text(
+                    'CLEAR',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
                   onPressed: () {
                     _removeCheckedItems();
                     Navigator.of(context).pop();
@@ -90,26 +112,81 @@ class TodoListState extends State<TodoList> {
         });
   }
 
-  void _restoreDeletedTasks() {
-    deleted.forEach((task) => _addTodoItem(task));
-    setState(() => deleted = []);
+  void _promptNoTasksToClear() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Nothing to clear'),
+            content: Text('You did not check any task from your list.'),
+            actions: <Widget>[
+              FlatButton(
+                child: Text(
+                  'OK',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+            ],
+          );
+        });
   }
 
-  Widget _buildTodoList() {
-    return new ListView.separated(
-      separatorBuilder: (context, index) =>
-          Divider(color: Colors.black, height: 1),
-      itemCount: todoList.length,
-      itemBuilder: (context, index) {
-        if (index < todoList.length) {
-          return _buildTodoItem(context, todoList[index], index);
-        }
-      },
-    );
+  void _promptRestoreDeletedTasks() {
+    showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Restore cleared tasks?'),
+            content:
+                Text('Your ${deleted.length} cleared tasks will be restored.'),
+            actions: <Widget>[
+              FlatButton(
+                child: Text(
+                  'CANCEL',
+                  style: TextStyle(
+                    fontSize: 16,
+                  ),
+                ),
+                onPressed: () => Navigator.of(context).pop(),
+              ),
+              FlatButton(
+                  child: Text(
+                    'RESTORE',
+                    style: TextStyle(
+                      fontSize: 16,
+                    ),
+                  ),
+                  onPressed: () {
+                    _restoreDeletedTasks();
+                    Navigator.of(context).pop();
+                  })
+            ],
+          );
+        });
   }
+
+  // *********************
+  // *** DIALOGS - END ***
+  // *********************
+
+  // Widget _buildTodoList() {
+  //   return ListView.separated(
+  //     separatorBuilder: (context, index) =>
+  //         Divider(color: Colors.black, height: 1),
+  //     itemCount: todoList.length,
+  //     itemBuilder: (context, index) {
+  //       if (index < todoList.length) {
+  //         return _buildTodoItem(context, todoList[index], index);
+  //       }
+  //     },
+  //   );
+  // }
 
   Widget _buildTodoItem(BuildContext context, Task todoItem, int index) {
-    return new Dismissible(
+    return Dismissible(
         key: Key(todoItem.created),
         onDismissed: (DismissDirection dir) {
           _removeTodoItem(index);
@@ -138,56 +215,61 @@ class TodoListState extends State<TodoList> {
           }
         },
         background: Container(
-          color: Colors.red,
-          child: Icon(
-            Icons.delete,
-            color: Colors.white,
-          ),
-          alignment: Alignment.center,
+          child: Icon(Icons.delete, color: Colors.red, size: 32),
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
         ),
         secondaryBackground: Container(
-          color: Colors.green,
-          child: Icon(
-            Icons.check_circle,
-            color: Colors.white,
-          ),
-          alignment: Alignment.center,
+          child: Icon(Icons.check_circle, color: Colors.green, size: 32),
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.symmetric(horizontal: 15),
         ),
-        child: ListTile(
-            leading: Padding(
-                child: Opacity(
-                  opacity: 0.4,
-                  child: Icon(Icons.assignment_turned_in, size: 32),
+        child: Card(
+            elevation: 2,
+            child: ListTile(
+                leading: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Icon(
+                      todoItem.checked
+                          ? Icons.check_box
+                          : Icons.check_box_outline_blank,
+                      size: 32,
+                      color: todoItem.checked ? Colors.green : Colors.grey,
+                    ),
+                  ],
                 ),
-                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
-            trailing: new Checkbox(
-              value: todoItem.checked,
-              activeColor: Colors.green,
-              onChanged: (bool value) {
-                _toggleItemCheckbox(index);
-              },
-            ),
-            title: Padding(
-                child: new Text(todoItem.name),
-                padding: EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
-            subtitle: new Text(new DateFormat('yyyy.MM.dd HH:mm')
-                .format(DateTime.parse(todoItem.created))
-                .toString()),
-            onTap: () => _toggleItemCheckbox(index)));
+                // trailing: Checkbox(
+                //   value: todoItem.checked,
+                //   activeColor: Colors.green,
+                //   onChanged: (bool value) {
+                //     _toggleItemCheckbox(index);
+                //   },
+                // ),
+                title: Padding(
+                    child: Text(todoItem.name),
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 10, horizontal: 0)),
+                subtitle: Text(DateFormat('yyyy.MM.dd HH:mm')
+                    .format(DateTime.parse(todoItem.created))
+                    .toString()),
+                onTap: () => _toggleItemCheckbox(index))));
   }
 
   void _pushAddTodoScreen() {
-    Navigator.of(context).push(new MaterialPageRoute(builder: (context) {
-      return new Scaffold(
-          appBar: new AppBar(title: new Text('Add new task')),
-          body: new TextField(
+    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
+      return Scaffold(
+          appBar: AppBar(title: Text('Add task')),
+          body: TextField(
             autofocus: true,
             autocorrect: true,
             onSubmitted: (val) {
-              _addTodoItem(new Task(val, new DateTime.now().toString(), false));
+              _addTodoItem(
+                  Task(val, DateTime.now().toString(), false, todoList.length));
               Navigator.pop(context);
             },
-            decoration: new InputDecoration(
+            decoration: InputDecoration(
                 hintText: 'Enter something to do...',
                 contentPadding: const EdgeInsets.all(16.0)),
           ));
@@ -196,18 +278,19 @@ class TodoListState extends State<TodoList> {
 
   @override
   Widget build(BuildContext context) {
-    return new Scaffold(
+    return Scaffold(
+      backgroundColor: Colors.lightGreenAccent[50],
       appBar: AppBar(
         title: Padding(
           child: const Text(
             'what to do',
             style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w200,
+                fontSize: 25,
+                fontWeight: FontWeight.w100,
                 wordSpacing: 2,
                 letterSpacing: 4),
           ),
-          padding: EdgeInsets.symmetric(horizontal: 5),
+          padding: const EdgeInsets.symmetric(horizontal: 5),
         ),
         backgroundColor: Colors.indigo,
         actions: <Widget>[
@@ -221,7 +304,7 @@ class TodoListState extends State<TodoList> {
                       Icons.restore,
                       size: 36,
                     ),
-                    onPressed: _restoreDeletedTasks,
+                    onPressed: _promptRestoreDeletedTasks,
                   )
                 : null,
             padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
@@ -234,24 +317,61 @@ class TodoListState extends State<TodoList> {
                 size: 36,
               ),
               onPressed: () {
-                if (todoList.toList().where((t) => t.checked).length > 0)
+                if (todoList.toList().where((t) => t.checked).length > 0) {
                   _promptClearDoneTasks();
+                } else {
+                  _promptNoTasksToClear();
+                }
               },
             ),
             padding: const EdgeInsets.fromLTRB(0, 0, 18, 0),
           )
         ],
       ),
-      body: Container(
-          child: new Stack(children: <Widget>[
-        new Positioned(
-          child: _buildTodoList(),
+      // body: Container(
+      //     child: Stack(children: <Widget>[
+      //   Positioned(
+      //     child: _buildTodoList(),
+      //   ),
+      // ])),
+      body: Scrollbar(
+        child: ReorderableListView(
+          // header: Padding(
+          //     padding: const EdgeInsets.all(8.0),
+          //     child: Text('Header of the list',
+          //         style: Theme.of(context).textTheme.headline)),
+          onReorder: _onReorder,
+          // reverse: _reverse,
+          scrollDirection: Axis.vertical,
+          padding: const EdgeInsets.symmetric(vertical: 8.0),
+          children: todoList
+              .map<Widget>((task) =>
+                  _buildTodoItem(context, task, todoList.indexOf(task)))
+              .toList(),
         ),
-      ])),
-      floatingActionButton: new FloatingActionButton(
+      ),
+      // ---
+
+      floatingActionButton: FloatingActionButton(
           onPressed: _pushAddTodoScreen,
           tooltip: 'Add task',
-          child: new Icon(Icons.add)),
+          backgroundColor: Colors.indigoAccent,
+          child: Icon(
+            Icons.add,
+          )),
     );
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) {
+        newIndex -= 1;
+      }
+      final Task item = todoList.removeAt(oldIndex);
+      todoList.insert(newIndex, item);
+      todoList[newIndex].id = newIndex;
+      todoList[oldIndex].id = oldIndex;
+    });
+    _setData();
   }
 }
