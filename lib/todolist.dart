@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:my_app/reorderableList/reorderableListSimple.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'task.dart';
-import 'package:flutter_reorderable_list/flutter_reorderable_list.dart';
 
 class TodoList extends StatefulWidget {
   @override
@@ -42,7 +42,7 @@ class TodoListState extends State<TodoList> {
     if (task.name.length > 0) {
       setState(() {
         todoList.add(task);
-        todoList.sort((a, b) => a.id.compareTo(b.id));
+        todoList.sort((a, b) => a.idx.compareTo(b.idx));
       });
       _setData();
     }
@@ -172,89 +172,28 @@ class TodoListState extends State<TodoList> {
   // *** DIALOGS - END ***
   // *********************
 
-  // Widget _buildTodoList() {
-  //   return ListView.separated(
-  //     separatorBuilder: (context, index) =>
-  //         Divider(color: Colors.black, height: 1),
-  //     itemCount: todoList.length,
-  //     itemBuilder: (context, index) {
-  //       if (index < todoList.length) {
-  //         return _buildTodoItem(context, todoList[index], index);
-  //       }
-  //     },
-  //   );
-  // }
-
   Widget _buildTodoItem(BuildContext context, Task todoItem, int index) {
-    return Dismissible(
-        key: Key(todoItem.created),
-        onDismissed: (DismissDirection dir) {
-          _removeTodoItem(index);
-        },
-        confirmDismiss: (direction) async {
-          if (direction == DismissDirection.startToEnd) {
-            _removeTodoItem(index);
-            // Scaffold.of(context).showSnackBar(SnackBar(
-            //   content: Text(direction == DismissDirection.startToEnd
-            //       ? '"${todoItem.name}" deleted.'
-            //       : '"${todoItem.name}" marked as done and removed.'),
-            //   // action: SnackBarAction(
-            //   //     label: 'UNDO',
-            //   //     // onPressed: () {
-            //   //     //   setState(() => _addTodoItem(todoItem));
-            //   //     // },
-            // ));
-
-            /// edit item
-            return true;
-          } else if (direction == DismissDirection.endToStart) {
-            setState(() => _toggleItemCheckbox(index));
-
-            /// delete
-            return false;
-          }
-        },
-        background: Container(
-          child: Icon(Icons.delete, color: Colors.red, size: 32),
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
+    return ListTile(
+        leading: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Icon(
+              todoItem.checked
+                  ? Icons.check_box
+                  : Icons.check_box_outline_blank,
+              size: 32,
+              color: todoItem.checked ? Colors.green : Colors.grey,
+            ),
+          ],
         ),
-        secondaryBackground: Container(
-          child: Icon(Icons.check_circle, color: Colors.green, size: 32),
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.symmetric(horizontal: 15),
-        ),
-        child: Card(
-            elevation: 2,
-            child: ListTile(
-                leading: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Icon(
-                      todoItem.checked
-                          ? Icons.check_box
-                          : Icons.check_box_outline_blank,
-                      size: 32,
-                      color: todoItem.checked ? Colors.green : Colors.grey,
-                    ),
-                  ],
-                ),
-                // trailing: Checkbox(
-                //   value: todoItem.checked,
-                //   activeColor: Colors.green,
-                //   onChanged: (bool value) {
-                //     _toggleItemCheckbox(index);
-                //   },
-                // ),
-                title: Padding(
-                    child: Text(todoItem.name),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 0)),
-                subtitle: Text(DateFormat('yyyy.MM.dd HH:mm')
-                    .format(DateTime.parse(todoItem.created))
-                    .toString()),
-                onTap: () => _toggleItemCheckbox(index))));
+        title: Padding(
+            child: Text(todoItem.name),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
+        subtitle: Text(DateFormat('yyyy.MM.dd HH:mm')
+            .format(DateTime.parse(todoItem.created))
+            .toString()),
+        onTap: () => _toggleItemCheckbox(index));
   }
 
   void _pushAddTodoScreen() {
@@ -328,30 +267,16 @@ class TodoListState extends State<TodoList> {
           )
         ],
       ),
-      // body: Container(
-      //     child: Stack(children: <Widget>[
-      //   Positioned(
-      //     child: _buildTodoList(),
-      //   ),
-      // ])),
-      body: Scrollbar(
-        child: ReorderableListView(
-          // header: Padding(
-          //     padding: const EdgeInsets.all(8.0),
-          //     child: Text('Header of the list',
-          //         style: Theme.of(context).textTheme.headline)),
-          onReorder: _onReorder,
-          // reverse: _reverse,
-          scrollDirection: Axis.vertical,
-          padding: const EdgeInsets.symmetric(vertical: 8.0),
-          children: todoList
-              .map<Widget>((task) =>
-                  _buildTodoItem(context, task, todoList.indexOf(task)))
-              .toList(),
-        ),
+      body: ReorderableListSimple(
+        onReorder: _onReorder,
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        children: todoList
+            .map<Widget>(
+                (task) => _buildTodoItem(context, task, todoList.indexOf(task)))
+            .toList(),
+        handleIcon: Icon(Icons.unfold_more, size: 36, color: Colors.indigo),
+        onItemRemoved: _removeTodoItem,
       ),
-      // ---
-
       floatingActionButton: FloatingActionButton(
           onPressed: _pushAddTodoScreen,
           tooltip: 'Add task',
@@ -364,13 +289,10 @@ class TodoListState extends State<TodoList> {
 
   void _onReorder(int oldIndex, int newIndex) {
     setState(() {
-      if (newIndex > oldIndex) {
-        newIndex -= 1;
-      }
       final Task item = todoList.removeAt(oldIndex);
       todoList.insert(newIndex, item);
-      todoList[newIndex].id = newIndex;
-      todoList[oldIndex].id = oldIndex;
+      todoList[newIndex].idx = newIndex;
+      todoList[oldIndex].idx = oldIndex;
     });
     _setData();
   }
