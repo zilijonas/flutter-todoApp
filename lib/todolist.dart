@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:my_app/reorderableList/reorderableListSimple.dart';
+import 'package:my_app/editTodoScreen.dart';
+import 'package:my_app/item.dart';
+import 'package:my_app/reorderableList/knoppReorderableList.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'addTodoScreen.dart';
+import 'dialogs.dart';
 import 'task.dart';
 
 class TodoList extends StatefulWidget {
@@ -30,6 +33,7 @@ class TodoListState extends State<TodoList> {
       setState(() =>
           todoList = taskList.map((item) => Task.fromJson(item)).toList());
     }
+    // prefs.clear();
   }
 
   _setData() async {
@@ -42,16 +46,24 @@ class TodoListState extends State<TodoList> {
     if (task.name.length > 0) {
       setState(() {
         todoList.add(task);
-        todoList.sort((a, b) => a.idx.compareTo(b.idx));
+        // todoList.sort((a, b) => a.idx.compareTo(b.idx));
       });
       _setData();
     }
   }
 
+  void _editTodoItem(val, taskIndex) {
+    setState(() => todoList[taskIndex].name = val);
+    _setData();
+  }
+
   void _removeTodoItem(int index) {
     var task = todoList[index];
     deleted.add(task);
-    setState(() => todoList.removeAt(index));
+    setState(() {
+      todoList.removeAt(index);
+      _resetTodolistIndexes();
+    });
     _setData();
   }
 
@@ -71,154 +83,30 @@ class TodoListState extends State<TodoList> {
 
   void _restoreDeletedTasks() {
     deleted.forEach((task) => _addTodoItem(task));
-    setState(() => deleted = []);
+    setState(() {
+      deleted = [];
+      // todoList.sort((a, b) => a.idx.compareTo(b.idx));
+      _resetTodolistIndexes();
+    });
   }
 
-  // *********************
-  //    *** DIALOGS ***
-  // *********************
-  void _promptClearDoneTasks() {
-    var checkedTasks = todoList.where((t) => t.checked).length;
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Clear all checked tasks?'),
-            content: Text(
-                'You have selected $checkedTasks ${checkedTasks > 1 ? 'tasks' : 'task'} to clear.'),
-            actions: <Widget>[
-              FlatButton(
-                child: Text(
-                  'CANCEL',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              FlatButton(
-                  child: Text(
-                    'CLEAR',
-                    style: TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                  onPressed: () {
-                    _removeCheckedItems();
-                    Navigator.of(context).pop();
-                  })
-            ],
-          );
-        });
-  }
-
-  void _promptNoTasksToClear() {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Nothing to clear'),
-            content: Text('You did not check any task from your list.'),
-            actions: <Widget>[
-              FlatButton(
-                child: Text(
-                  'OK',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          );
-        });
-  }
-
-  void _promptRestoreDeletedTasks() {
-    showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Restore cleared tasks?'),
-            content:
-                Text('Your ${deleted.length} cleared tasks will be restored.'),
-            actions: <Widget>[
-              FlatButton(
-                child: Text(
-                  'CANCEL',
-                  style: TextStyle(
-                    fontSize: 16,
-                  ),
-                ),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-              FlatButton(
-                  child: Text(
-                    'RESTORE',
-                    style: TextStyle(
-                      fontSize: 16,
-                    ),
-                  ),
-                  onPressed: () {
-                    _restoreDeletedTasks();
-                    Navigator.of(context).pop();
-                  })
-            ],
-          );
-        });
-  }
-
-  // *********************
-  // *** DIALOGS - END ***
-  // *********************
-
-  Widget _buildTodoItem(BuildContext context, Task todoItem, int index) {
-    return ListTile(
-        leading: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Icon(
-              todoItem.checked
-                  ? Icons.check_box
-                  : Icons.check_box_outline_blank,
-              size: 32,
-              color: todoItem.checked ? Colors.green : Colors.grey,
-            ),
-          ],
-        ),
-        title: Padding(
-            child: Text(todoItem.name),
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 0)),
-        subtitle: Text(DateFormat('yyyy.MM.dd HH:mm')
-            .format(DateTime.parse(todoItem.created))
-            .toString()),
-        onTap: () => _toggleItemCheckbox(index));
+  void _resetTodolistIndexes() {
+    todoList.asMap().forEach((index, item) => item.idx = index);
   }
 
   void _pushAddTodoScreen() {
-    Navigator.of(context).push(MaterialPageRoute(builder: (context) {
-      return Scaffold(
-          appBar: AppBar(title: Text('Add task')),
-          body: TextField(
-            autofocus: true,
-            autocorrect: true,
-            onSubmitted: (val) {
-              _addTodoItem(
-                  Task(val, DateTime.now().toString(), false, todoList.length));
-              Navigator.pop(context);
-            },
-            decoration: InputDecoration(
-                hintText: 'Enter something to do...',
-                contentPadding: const EdgeInsets.all(16.0)),
-          ));
-    }));
+    Navigator.of(context).push(addTodoScreen(_addTodoItem, todoList.length));
+  }
+
+  void _pushEditTodoScreen(Task task) {
+    Navigator.of(context)
+        .push(editTodoScreen(task.name, task.idx, _editTodoItem));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.lightGreenAccent[50],
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: Padding(
           child: const Text(
@@ -243,7 +131,10 @@ class TodoListState extends State<TodoList> {
                       Icons.restore,
                       size: 36,
                     ),
-                    onPressed: _promptRestoreDeletedTasks,
+                    onPressed: () {
+                      promptRestoreDeletedTasks(
+                          context, deleted.length, _restoreDeletedTasks);
+                    },
                   )
                 : null,
             padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
@@ -257,9 +148,12 @@ class TodoListState extends State<TodoList> {
               ),
               onPressed: () {
                 if (todoList.toList().where((t) => t.checked).length > 0) {
-                  _promptClearDoneTasks();
+                  promptClearDoneTasks(
+                      context,
+                      todoList.where((t) => t.checked).length,
+                      _removeCheckedItems);
                 } else {
-                  _promptNoTasksToClear();
+                  promptNoTasksToClear(context);
                 }
               },
             ),
@@ -267,16 +161,33 @@ class TodoListState extends State<TodoList> {
           )
         ],
       ),
-      body: ReorderableListSimple(
-        onReorder: _onReorder,
-        padding: const EdgeInsets.symmetric(vertical: 8.0),
-        children: todoList
-            .map<Widget>(
-                (task) => _buildTodoItem(context, task, todoList.indexOf(task)))
-            .toList(),
-        handleIcon: Icon(Icons.unfold_more, size: 36, color: Colors.indigo),
-        onItemRemoved: _removeTodoItem,
-      ),
+      body: ReorderableList(
+          onReorder: _reorderCallback,
+          onReorderDone: (Key key) {
+            setState(() => _resetTodolistIndexes());
+            _setData();
+          },
+          child: CustomScrollView(
+            slivers: <Widget>[
+              SliverPadding(
+                  padding: EdgeInsets.only(
+                      bottom: MediaQuery.of(context).padding.bottom),
+                  sliver: SliverList(
+                    delegate: SliverChildBuilderDelegate(
+                      (BuildContext context, int index) {
+                        return Item(
+                            data: todoList[index],
+                            isFirst: index == 0,
+                            isLast: index == todoList.length - 1,
+                            onRemoved: _removeTodoItem,
+                            onChecked: _toggleItemCheckbox,
+                            onEdit: _pushEditTodoScreen);
+                      },
+                      childCount: todoList.length,
+                    ),
+                  )),
+            ],
+          )),
       floatingActionButton: FloatingActionButton(
           onPressed: _pushAddTodoScreen,
           tooltip: 'Add task',
@@ -287,13 +198,24 @@ class TodoListState extends State<TodoList> {
     );
   }
 
-  void _onReorder(int oldIndex, int newIndex) {
+  int _indexOfKey(Key key) {
+    return todoList.indexWhere((t) => ValueKey(t.idx) == key);
+  }
+
+  bool _reorderCallback(Key item, Key newPosition) {
+    int draggingIndex = _indexOfKey(item);
+    int newPositionIndex = _indexOfKey(newPosition);
+
+    // Uncomment to allow only even target reorder possition
+    // if (newPositionIndex % 2 == 1)
+    //   return false;
+
+    final Task draggedItem = todoList[draggingIndex];
     setState(() {
-      final Task item = todoList.removeAt(oldIndex);
-      todoList.insert(newIndex, item);
-      todoList[newIndex].idx = newIndex;
-      todoList[oldIndex].idx = oldIndex;
+      // debugPrint("Reordering ${item} -> $newPosition");
+      todoList.removeAt(draggingIndex);
+      todoList.insert(newPositionIndex, draggedItem);
     });
-    _setData();
+    return true;
   }
 }
