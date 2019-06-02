@@ -63,20 +63,39 @@ class Item extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
         Expanded(
-          flex: 1,
           child: ListTile(
-            leading: Checkbox(
-              value: data.checked,
-              onChanged: (bool val) {
-                onChecked(data.idx);
-              },
+            leading: Transform.scale(
+              scale: 1.1,
+              child: Checkbox(
+                materialTapTargetSize: MaterialTapTargetSize.padded,
+                activeColor: Colors.green[400],
+                value: data.checked,
+                onChanged: (bool val) {
+                  onChecked(data.idx);
+                },
+              ),
             ),
-            title: Container(
-              // height: 100,
-              child: Text(data.name),
+            subtitle: Column(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Expanded(
+                  child: Container(
+                    constraints: BoxConstraints(maxHeight: double.infinity),
+                    padding: EdgeInsets.only(top: 20, bottom: 10),
+                    child: Text(
+                      data.name,
+                      style: TextStyle(fontSize: 16, color: Colors.black87),
+                    ),
+                  ),
+                ),
+                Container(
+                    padding: EdgeInsets.only(bottom: 10),
+                    child:
+                        Text(formattedTaskAge, style: TextStyle(fontSize: 12)))
+              ],
             ),
-            subtitle: Text(formattedTaskAge),
-            contentPadding: EdgeInsets.symmetric(vertical: 10),
+            contentPadding: EdgeInsets.symmetric(vertical: 0),
             onTap: () => onChecked(data.idx),
           ),
         ),
