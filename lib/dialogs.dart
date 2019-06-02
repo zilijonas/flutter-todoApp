@@ -90,3 +90,53 @@ void promptNoTasksToClear(BuildContext context) {
         );
       });
 }
+
+void promptSortList(
+  BuildContext context,
+  Function _sortByChecked,
+  Function _sortByCreated,
+) {
+  showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Sort list'),
+          content: Text('Select property by which should list be sorted.'),
+          actions: <Widget>[
+            FlatButton(
+              child: Text(
+                'Cancel',
+                style: TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+            FlatButton(
+              child: Text(
+                'By checked',
+                style: TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+              onPressed: () {
+                _sortByChecked();
+                Navigator.of(context).pop();
+              },
+            ),
+            FlatButton(
+              child: Text(
+                'By created',
+                style: TextStyle(
+                  fontSize: 16,
+                ),
+              ),
+              onPressed: () {
+                _sortByCreated();
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      });
+}

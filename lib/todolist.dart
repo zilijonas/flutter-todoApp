@@ -42,12 +42,44 @@ class TodoListState extends State<TodoList> {
         json.encode(todoList.map((item) => (item.toJson())).toList()));
   }
 
+  void _sortByCreated() {
+    if (todoList.length > 0) {
+      sortItemsByCreated(List<Task> list, bool reverse) => reverse
+          ? list.sort((a, b) => b.created.compareTo(a.created))
+          : list.sort((a, b) => a.created.compareTo(b.created));
+
+      List<Task> sortedTodos = todoList.map((i) => i).toList();
+      sortItemsByCreated(sortedTodos, false);
+      sortedTodos.sort((a, b) => a.idx.compareTo(b.idx));
+      setState(() => sortItemsByCreated(
+          todoList, jsonEncode(sortedTodos) == jsonEncode(todoList)));
+      _setData();
+    }
+  }
+
+  void _sortByChecked() {
+    if (todoList.length > 0) {
+      sortItemsByChecked(List<Task> list, bool reverse) => list.sort((a, b) {
+            if (a.checked && !b.checked) {
+              return reverse ? 1 : -1;
+            }
+            if (!a.checked && b.checked) {
+              return reverse ? -1 : 1;
+            } else
+              return b.created.compareTo(a.created);
+          });
+
+      List<Task> sortedTodos = todoList.map((i) => i).toList();
+      sortItemsByChecked(sortedTodos, false);
+      setState(() => sortItemsByChecked(
+          todoList, jsonEncode(sortedTodos) == jsonEncode(todoList)));
+      _setData();
+    }
+  }
+
   void _addTodoItem(Task task) {
     if (task.name.length > 0) {
-      setState(() {
-        todoList.add(task);
-        // todoList.sort((a, b) => a.idx.compareTo(b.idx));
-      });
+      setState(() => todoList.add(task));
       _setData();
     }
   }
@@ -85,7 +117,6 @@ class TodoListState extends State<TodoList> {
     deleted.forEach((task) => _addTodoItem(task));
     setState(() {
       deleted = [];
-      // todoList.sort((a, b) => a.idx.compareTo(b.idx));
       _resetTodolistIndexes();
     });
   }
@@ -122,7 +153,6 @@ class TodoListState extends State<TodoList> {
         backgroundColor: Colors.indigo,
         actions: <Widget>[
           // action button
-
           Padding(
             child: deleted.length > 0
                 ? IconButton(
@@ -131,14 +161,25 @@ class TodoListState extends State<TodoList> {
                       Icons.restore,
                       size: 36,
                     ),
-                    onPressed: () {
-                      promptRestoreDeletedTasks(
-                          context, deleted.length, _restoreDeletedTasks);
-                    },
+                    onPressed: () => promptRestoreDeletedTasks(
+                        context, deleted.length, _restoreDeletedTasks),
                   )
                 : null,
-            padding: const EdgeInsets.fromLTRB(0, 0, 5, 0),
+            padding: const EdgeInsets.only(right: 5),
           ),
+
+          Padding(
+            child: IconButton(
+                alignment: Alignment.centerRight,
+                icon: Icon(
+                  Icons.sort,
+                  size: 36,
+                ),
+                onPressed: () =>
+                    promptSortList(context, _sortByChecked, _sortByCreated)),
+            padding: const EdgeInsets.only(right: 5),
+          ),
+
           Padding(
             child: IconButton(
               alignment: Alignment.centerRight,
@@ -157,7 +198,7 @@ class TodoListState extends State<TodoList> {
                 }
               },
             ),
-            padding: const EdgeInsets.fromLTRB(0, 0, 18, 0),
+            padding: const EdgeInsets.only(right: 18),
           )
         ],
       ),
