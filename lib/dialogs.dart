@@ -114,7 +114,7 @@ void promptSortList(
             ),
             FlatButton(
               child: Text(
-                'By checked',
+                'By Checks',
                 style: TextStyle(
                   fontSize: 16,
                 ),
@@ -126,7 +126,7 @@ void promptSortList(
             ),
             FlatButton(
               child: Text(
-                'By created',
+                'By Date',
                 style: TextStyle(
                   fontSize: 16,
                 ),
